@@ -2,22 +2,16 @@ package rmcl.bio.assemble;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.Mapper.Context;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -61,9 +55,7 @@ public class ExtendPathsBFS {
 			List<GraphNode> nodes = new ArrayList<GraphNode>();
 			for (GraphNode x: values) {
 				nodes.add(new GraphNode(x));
-//				LOG.info("SEQ:"+x.sequence);
 			}
-//			LOG.info("\n");
 
 			int count = 0;
 			for (GraphNode x: nodes) {
@@ -77,13 +69,7 @@ public class ExtendPathsBFS {
 					
 					String yf = y.getFirstKmer(k);
 					String yl = y.getLastKmer(k);
-					
-//					LOG.info(x.sequence+"\t"+y.sequence);
-//					LOG.info(xfirst+"\t"+yfirst);
-//					LOG.info(xlast+"\t"+ylast);
-//					
-//					count++;
-//					
+								
 					if (xf.compareTo(yl) == 0) {
 						result.clear();
 						

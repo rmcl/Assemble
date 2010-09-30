@@ -144,7 +144,6 @@ public class FastaRecordReader extends RecordReader<Text, Text> {
     	  //Got rid of the ">"
     	  nextKey.set(tmp.toString().substring(1));
     	  return true;
-
       }
     }
     
