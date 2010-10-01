@@ -8,11 +8,15 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
 import rmcl.bio.assemble.BuildGraph.BuildDeBruijnGraphMapper;
 import rmcl.bio.assemble.BuildGraph.BuildDeBruijnGraphReducer;
+import rmcl.bio.assemble.ExtendPathsBFS.ExtendPathsMapper;
+import rmcl.bio.assemble.ExtendPathsBFS.ExtendPathsReducer;
 import rmcl.bio.util.input.FastaInputFormat;
 import rmcl.bio.util.io.GraphNode;
 import rmcl.bio.util.io.KmerText;
@@ -21,6 +25,7 @@ public class Assemble {
 	private int kmerLength;
 	private List<String> inputPaths;
 	private String outputPath;
+	private int extendIter;
 	
 	private final String BUILD_OUTPUT_DIR="/graph";
 	
@@ -28,6 +33,7 @@ public class Assemble {
 		inputPaths = new ArrayList<String>();
 		kmerLength = kmerLen;
 		outputPath = outPath;
+		extendIter = 0;
 	}
 	
 	private Job setupBuildGraphJob(String outputPath) throws IOException {
@@ -56,6 +62,35 @@ public class Assemble {
 		return job;
 	}
 	
+	public Job setupExtendPathJob() throws IOException {
+		Job job = new Job();
+		
+		Configuration config = job.getConfiguration();
+		config.set("kmer-length", Integer.toString(kmerLength));
+		
+		job.setJarByClass(ExtendPathsMapper.class);
+		job.setInputFormatClass(SequenceFileInputFormat.class);
+		job.setOutputFormatClass(SequenceFileOutputFormat.class);
+
+		if (extendIter == 0) {
+			FileInputFormat.addInputPath(job, new Path(outputPath+BUILD_OUTPUT_DIR));
+		} else {
+			FileInputFormat.addInputPath(job, new Path(outputPath+"/extend-"+extendIter));
+		}
+		FileOutputFormat.setOutputPath(job, new Path(outputPath+"/extend-"+(extendIter+1)));
+		
+		job.setMapperClass(ExtendPathsMapper.class);
+		job.setReducerClass(ExtendPathsReducer.class);
+		
+		job.setMapOutputKeyClass(KmerText.class);
+
+		job.setOutputKeyClass(NullWritable.class);
+		job.setOutputValueClass(GraphNode.class);
+		
+		extendIter++;
+		return job;
+	}
+	
 	public void addInputDir(String path) {
 		inputPaths.add(path);		
 	}
@@ -63,9 +98,8 @@ public class Assemble {
 	public void run() throws IOException, InterruptedException, ClassNotFoundException {
 		
 		Job build = setupBuildGraphJob(outputPath+BUILD_OUTPUT_DIR);
+
 		System.exit(build.waitForCompletion(true) ? 0: 1);		
-		
-		
 	}
 	
 	public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
