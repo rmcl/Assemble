@@ -31,6 +31,7 @@ public class KmerTokenizer implements Enumeration<byte[]> {
 			return false;
 		}
 		return true;
+		
 	}
 
 	/**

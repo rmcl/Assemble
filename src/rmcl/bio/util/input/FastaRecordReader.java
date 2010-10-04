@@ -152,6 +152,12 @@ public class FastaRecordReader extends RecordReader<Text, Text> {
       value = null;
       return false;
     }
+    
+    //If this read contains a period discard it and get next one.
+    if (value != null && value.find(".") >= 0) {
+    	return nextKeyValue();
+    }
+    
     return true;
   }
 

@@ -9,6 +9,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
@@ -19,68 +20,62 @@ import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
 import rmcl.bio.util.io.GraphNode;
 import rmcl.bio.util.io.KmerText;
+import rmcl.bio.util.io.EulerianPath;
 
 public class ExtendPathsBFS {
 
 	static final Log LOG = LogFactory.getLog(Job.class);
 	
 	public static class ExtendPathsMapper 
-			extends Mapper<NullWritable, GraphNode, KmerText, GraphNode>{
+			extends Mapper<NullWritable, EulerianPath, Text, EulerianPath>{
 	  
-		private final static KmerText kmer = new KmerText();
+		private final static Text kmer = new Text();
 			
-		public void map(NullWritable key, GraphNode value, Context context) 
+		public void map(NullWritable key, EulerianPath value, Context context) 
 				throws IOException, InterruptedException {
 			
 			int k = Integer.parseInt(context.getConfiguration().get("kmer-length"));
 			
-			kmer.set(value.getFirstKmer(k));
+			kmer.set(value.firstKmer(k));
 			context.write(kmer, value);
-			kmer.set(value.getLastKmer(k));
+			kmer.set(value.lastKmer(k));
 			context.write(kmer, value);
 		}
 	}
 		
-	public static class ExtendPathsReducer extends Reducer<KmerText,GraphNode,NullWritable,GraphNode> {
-		private GraphNode result = new GraphNode();
+	public static class ExtendPathsReducer extends Reducer<Text,EulerianPath,NullWritable,EulerianPath> {
 			
-		public void reduce(KmerText key, Iterable<GraphNode> values, Context context) 
+		public void reduce(Text key, Iterable<EulerianPath> values, Context context) 
 				throws IOException, InterruptedException {
 			
 			int k = Integer.parseInt(context.getConfiguration().get("kmer-length"));
-
+			double minCoverage = (double) context.getConfiguration().getFloat("minimum-coverage", 0);
+			
 			// Hadoop values iterator can only be iterate through once apparently.
 			// https://issues.apache.org/jira/browse/HADOOP-475
 			// Hacky solution follows - This should be okay because we should have very few values per key.
-			List<GraphNode> nodes = new ArrayList<GraphNode>();
-			for (GraphNode x: values) {
-				nodes.add(new GraphNode(x));
+			List<EulerianPath> nodes = new ArrayList<EulerianPath>();
+			for (EulerianPath x: values) {
+				nodes.add(new EulerianPath(x));
 			}
 
-			int count = 0;
-			for (GraphNode x: nodes) {
-				String xf = x.getFirstKmer(k);
-				String xl = x.getLastKmer(k);
+			for (EulerianPath x: nodes) {
+
+				if (x.averageConverage() < minCoverage) {
+					continue;
+				}
 				
-				for (GraphNode y: nodes) {
+				for (EulerianPath y: nodes) {
 					if (x == y) {
 						continue;
 					}
 					
-					String yf = y.getFirstKmer(k);
-					String yl = y.getLastKmer(k);
-								
-					if (xf.compareTo(yl) == 0) {
-						result.clear();
-						
-						String s1 = y.sequence.toString();
-						String s2 = x.sequence.toString();
-						
-						String newSeq = s1.substring(0, s1.length() - k) + s2;
-						
-						result.setSequence(newSeq);
-						result.addReadLabels(x.getReadLabels());
-						result.addReadLabels(y.getReadLabels());
+					if (y.averageConverage() < minCoverage) {
+						continue;
+					}					
+					
+					EulerianPath result = x.extendPath(y, k);
+					if (result != null) {
 						context.write(NullWritable.get(), result);
 					}
 				}
@@ -98,7 +93,6 @@ public class ExtendPathsBFS {
 		}
 		
 		Job job = new Job();
-		
 		Configuration config = job.getConfiguration();
 		config.set("kmer-length", "25");
 		

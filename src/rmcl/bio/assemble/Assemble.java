@@ -7,19 +7,23 @@ import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.compress.CompressionCodec;
+import org.apache.hadoop.io.compress.GzipCodec;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
+import rmcl.bio.assemble.BuildGraph.BuildDeBruijnGraphCombiner;
 import rmcl.bio.assemble.BuildGraph.BuildDeBruijnGraphMapper;
 import rmcl.bio.assemble.BuildGraph.BuildDeBruijnGraphReducer;
 import rmcl.bio.assemble.ExtendPathsBFS.ExtendPathsMapper;
 import rmcl.bio.assemble.ExtendPathsBFS.ExtendPathsReducer;
 import rmcl.bio.util.input.FastaInputFormat;
-import rmcl.bio.util.io.GraphNode;
-import rmcl.bio.util.io.KmerText;
+import rmcl.bio.util.io.EulerianPath;
+
 
 public class Assemble {
 	private int kmerLength;
@@ -33,7 +37,7 @@ public class Assemble {
 		inputPaths = new ArrayList<String>();
 		kmerLength = kmerLen;
 		outputPath = outPath;
-		extendIter = 0;
+		extendIter = 2;
 	}
 	
 	private Job setupBuildGraphJob(String outputPath) throws IOException {
@@ -41,6 +45,14 @@ public class Assemble {
 		
 		Configuration config = job.getConfiguration();
 		config.set("kmer-length", Integer.toString(kmerLength));
+
+		//Increase task jvm memory
+		config.set("mapred.child.java.opts", "-Xmx2000m");
+		
+		//Compress map output
+		//These settings seem to make the map stage take WAY longer. Like 15 minutes longer.
+		//config.setBoolean("mapred.compress.map.output", true);
+		//config.setClass("mapred.map.output.compression.codec", GzipCodec.class, CompressionCodec.class);
 		
 		job.setJarByClass(BuildGraph.class);
 		job.setInputFormatClass(FastaInputFormat.class);
@@ -52,12 +64,16 @@ public class Assemble {
 		FileOutputFormat.setOutputPath(job, new Path(outputPath));
 		
 		job.setMapperClass(BuildDeBruijnGraphMapper.class);
+		job.setCombinerClass(BuildDeBruijnGraphCombiner.class);
 		job.setReducerClass(BuildDeBruijnGraphReducer.class);
+		job.setNumReduceTasks(10);
 		
-		job.setMapOutputKeyClass(KmerText.class);
+
+		
+		job.setMapOutputKeyClass(Text.class);
 
 		job.setOutputKeyClass(NullWritable.class);
-		job.setOutputValueClass(GraphNode.class);
+		job.setOutputValueClass(EulerianPath.class);
 		
 		return job;
 	}
@@ -67,8 +83,13 @@ public class Assemble {
 		
 		Configuration config = job.getConfiguration();
 		config.set("kmer-length", Integer.toString(kmerLength));
+		config.set("mapred.job.name", "ExtendPath-iter-"+extendIter);
+		//Increase task jvm memory
+		config.set("mapred.child.java.opts", "-Xmx2000m");
 		
-		job.setJarByClass(ExtendPathsMapper.class);
+		config.setFloat("minimum-coverage", (float)2.0);
+		
+		job.setJarByClass(ExtendPathsBFS.class);
 		job.setInputFormatClass(SequenceFileInputFormat.class);
 		job.setOutputFormatClass(SequenceFileOutputFormat.class);
 
@@ -81,11 +102,12 @@ public class Assemble {
 		
 		job.setMapperClass(ExtendPathsMapper.class);
 		job.setReducerClass(ExtendPathsReducer.class);
+		job.setNumReduceTasks(10);
 		
-		job.setMapOutputKeyClass(KmerText.class);
+		job.setMapOutputKeyClass(Text.class);
 
 		job.setOutputKeyClass(NullWritable.class);
-		job.setOutputValueClass(GraphNode.class);
+		job.setOutputValueClass(EulerianPath.class);
 		
 		extendIter++;
 		return job;
@@ -97,9 +119,14 @@ public class Assemble {
 	
 	public void run() throws IOException, InterruptedException, ClassNotFoundException {
 		
-		Job build = setupBuildGraphJob(outputPath+BUILD_OUTPUT_DIR);
+		//Job build = setupBuildGraphJob(outputPath+BUILD_OUTPUT_DIR);
 
-		System.exit(build.waitForCompletion(true) ? 0: 1);		
+		for (int i = 2; i < 20; i++) {
+			Job build = setupExtendPathJob();
+			if (build.waitForCompletion(true) == false) {
+				break;		
+			}
+		}
 	}
 	
 	public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
@@ -108,7 +135,7 @@ public class Assemble {
 			System.exit(1);
 		}
 		
-		Assemble asm = new Assemble(args[1], 25);
+		Assemble asm = new Assemble(args[1], 31);
 		asm.addInputDir(args[0]);
 		
 		asm.run();

@@ -48,4 +48,8 @@ public class StringKmerTokenizer implements Enumeration<String> {
 		buffer = new StringBuffer(buffer.substring(1));
 		return result;
 	}
+	
+	public int getIndex() {
+		return it.getIndex();
+	}
 }
