@@ -4,6 +4,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.hadoop.io.Writable;
@@ -112,6 +113,18 @@ public class EulerianPath implements Writable {
 	 */
 	public void set(List<KmerEdge> e) {
 		edges = e;
+	}
+	
+	public String getSequence() {
+		StringBuffer b = new StringBuffer();
+		Iterator<KmerEdge> itr = edges.iterator();
+		b.append(itr.next().sequence);
+		int k = b.length() - 1;
+		while (itr.hasNext()) {
+			String t = itr.next().sequence;
+			b.append(t.substring(k, t.length()));
+		}
+		return b.toString();
 	}
 	
 	/**

@@ -33,12 +33,12 @@ public class BuildGraph {
 		private final static EulerianPath path = new EulerianPath();
 		private final static KmerEdge edge = new KmerEdge();
 		private final static List<KmerEdge> edges = new ArrayList<KmerEdge>();
-		private final static KmerLabel label = new KmerLabel();
-		private final static Set<KmerLabel> labels = new HashSet<KmerLabel>();		
+		//private final static KmerLabel label = new KmerLabel();
+		//private final static Set<KmerLabel> labels = new HashSet<KmerLabel>();		
 		private final static Text kmerText = new Text();
 		
 		public BuildDeBruijnGraphMapper() {
-			labels.add(label);	
+			//labels.add(label);	
 			edges.add(edge);
 			path.set(edges);
 		}
@@ -53,9 +53,13 @@ public class BuildGraph {
 			StringKmerTokenizer itr = new StringKmerTokenizer(value.toString(), k + 1);
 			
 			while (itr.hasMoreElements()) {				
-				label.set(key.toString(), itr.getIndex());
+				//label.set(key.toString(), itr.getIndex());
 				String seq = itr.nextElement();
-				edge.set(seq, labels);
+				if (seq == null) {
+					continue;
+				}
+
+				edge.set(seq, 1);
 				kmerText.set(seq);
 				
 				context.write(kmerText, path);
@@ -71,7 +75,7 @@ public class BuildGraph {
 			EulerianPath result = new EulerianPath(itr.next());
 			
 			while(itr.hasNext()) {
-				result.get(0).addLabels((itr.next().get(0).labels()));
+				result.get(0).setCoverage(result.get(0).coverage() + itr.next().get(0).coverage());
 			}	
 			context.write(key, result);
 		}
@@ -85,7 +89,7 @@ public class BuildGraph {
 			EulerianPath result = new EulerianPath(itr.next());
 			
 			while(itr.hasNext()) {
-				result.get(0).addLabels((itr.next().get(0).labels()));
+				result.get(0).setCoverage(result.get(0).coverage() + itr.next().get(0).coverage());
 			}	
 			context.write(NullWritable.get(), result);
 		}

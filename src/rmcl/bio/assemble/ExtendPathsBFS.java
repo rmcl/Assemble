@@ -2,24 +2,19 @@ package rmcl.bio.assemble;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
+
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
-import rmcl.bio.util.io.GraphNode;
-import rmcl.bio.util.io.KmerText;
 import rmcl.bio.util.io.EulerianPath;
 
 public class ExtendPathsBFS {
@@ -54,18 +49,23 @@ public class ExtendPathsBFS {
 			// Hadoop values iterator can only be iterate through once apparently.
 			// https://issues.apache.org/jira/browse/HADOOP-475
 			// Hacky solution follows - This should be okay because we should have very few values per key.
-			List<EulerianPath> nodes = new ArrayList<EulerianPath>();
+			// Put them in a map indexed by sequence so that there will be no duplicates.
+			Map<String,EulerianPath> nodes = new HashMap<String,EulerianPath>();
 			for (EulerianPath x: values) {
-				nodes.add(new EulerianPath(x));
+				nodes.put(x.toString(), new EulerianPath(x));
 			}
+			System.err.println("Reducer received "+nodes.size()+" paths.");
 
-			for (EulerianPath x: nodes) {
-
+			for (Map.Entry<String,EulerianPath> xx: nodes.entrySet()) {
+				EulerianPath x = xx.getValue();
+				
 				if (x.averageConverage() < minCoverage) {
 					continue;
 				}
 				
-				for (EulerianPath y: nodes) {
+				for (Map.Entry<String, EulerianPath> yy: nodes.entrySet()) {
+					EulerianPath y = yy.getValue();
+					
 					if (x == y) {
 						continue;
 					}
@@ -79,43 +79,8 @@ public class ExtendPathsBFS {
 						context.write(NullWritable.get(), result);
 					}
 				}
-			}
-			
+			}		
 			//LOG.info(key.toString()+": survivors: "+count);
-			
 		}
-	}
-	
-	public static void main(String[] args) throws Exception {
-		if (args.length != 3) {
-			System.err.println("Usage: ExtendPathsBFS <input path> <output path> <textout>");
-			System.exit(1);
-		}
-		
-		Job job = new Job();
-		Configuration config = job.getConfiguration();
-		config.set("kmer-length", "25");
-		
-		job.setJarByClass(ExtendPathsMapper.class);
-		job.setInputFormatClass(SequenceFileInputFormat.class);
-		
-		if (args[2].compareTo("true") != 0) {
-			job.setOutputFormatClass(SequenceFileOutputFormat.class);
-		}
-
-		
-		FileInputFormat.addInputPath(job, new Path(args[0]));
-		FileOutputFormat.setOutputPath(job, new Path(args[1]));
-		
-		job.setMapperClass(ExtendPathsMapper.class);
-		job.setReducerClass(ExtendPathsReducer.class);
-		
-		job.setMapOutputKeyClass(KmerText.class);
-
-		job.setOutputKeyClass(NullWritable.class);
-		//job.setOutputKeyClass(KmerText.class);
-		job.setOutputValueClass(GraphNode.class);
-		
-		System.exit(job.waitForCompletion(true) ? 0: 1);
 	}
 }

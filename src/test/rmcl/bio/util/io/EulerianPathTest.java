@@ -30,7 +30,7 @@ public class EulerianPathTest extends TestCase {
 		  List<KmerEdge> edges = new ArrayList<KmerEdge>();
 		  for (int i = 0; i < 5; i++) {
 			  KmerEdge e = new KmerEdge();
-			  e.set("AAB", null);
+			  e.set("AAB", 1);
 			  edges.add(e);
 		  }
 		  
@@ -45,7 +45,7 @@ public class EulerianPathTest extends TestCase {
 		  List<KmerEdge> edges = new ArrayList<KmerEdge>();
 		  for (int i = 0; i < 5; i++) {
 			  KmerEdge e = new KmerEdge();
-			  e.set("AAB", null);
+			  e.set("AAB", 1);
 			  edges.add(e);
 		  }
 		  
@@ -58,30 +58,27 @@ public class EulerianPathTest extends TestCase {
 	  public void testExtendPath() {
 		  List<KmerEdge> edges = new ArrayList<KmerEdge>();
 		  KmerEdge e = new KmerEdge();
-		  e.set("AAB", null);
+		  e.set("AAB", 1);
 		  edges.add(e);
 		  EulerianPath p = new EulerianPath();
 		  p.set(edges);
 		  
 		  List<KmerEdge> edges2 = new ArrayList<KmerEdge>();
 		  KmerEdge e2 = new KmerEdge();
-		  e2.set("ABC", null);
+		  e2.set("ABC", 1);
 		  edges2.add(e2);
 		  EulerianPath p2 = new EulerianPath();
 		  p2.set(edges2);
 		  
 		  EulerianPath p3 = p.extendPath(p2, 2);
 		  assertNotNull(p3);
-		  assertEquals(p3.toString(), "2\tAAB\tABC");
+		  assertEquals(p3.toString(), "2\tAAB,1\tABC,1");
 	  }
 	  
 	  public void testAvgCoverage() {
 		  List<KmerEdge> edges = new ArrayList<KmerEdge>();
 		  KmerEdge e = new KmerEdge();
-		  Set<KmerLabel> labels = new HashSet<KmerLabel>();
-		  labels.add(new KmerLabel());
-		  labels.add(new KmerLabel());
-		  e.set("AAB", labels);
+		  e.set("AAB", 2);
 		  edges.add(e);
 		  EulerianPath p = new EulerianPath();
 		  p.set(edges);
@@ -89,14 +86,35 @@ public class EulerianPathTest extends TestCase {
 		  
 		  edges = new ArrayList<KmerEdge>();
 		  e = new KmerEdge();
-		  labels = new HashSet<KmerLabel>();
-		  labels.add(new KmerLabel());
-		  e.set("ABC", labels);
+
+		  e.set("ABC", 1);
 		  edges.add(e);
 		  EulerianPath p2 = new EulerianPath();
 		  p2.set(edges);
 		  
 		  EulerianPath p3 = p.extendPath(p2, 2);
 		  assertEquals(1.5, p3.averageConverage());
+	  }
+	  
+	  public void testGetSequence() {
+		  List<KmerEdge> edges = new ArrayList<KmerEdge>();
+		  KmerEdge e = new KmerEdge();
+		  e.set("CAAB", 2);
+		  edges.add(e);
+		  EulerianPath p = new EulerianPath();
+		  p.set(edges);
+		  
+		  
+		  edges = new ArrayList<KmerEdge>();
+		  e = new KmerEdge();
+
+		  e.set("ABCD", 1);
+		  edges.add(e);
+		  EulerianPath p2 = new EulerianPath();
+		  p2.set(edges);
+		  
+		  EulerianPath p3 = p.extendPath(p2, 2);
+		  
+		  assertEquals("CAABD", p3.getSequence());
 	  }
 }

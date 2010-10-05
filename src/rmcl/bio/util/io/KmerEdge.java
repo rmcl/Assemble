@@ -3,8 +3,6 @@ package rmcl.bio.util.io;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
 
 import org.apache.hadoop.io.Writable;
 
@@ -15,35 +13,20 @@ import org.apache.hadoop.io.Writable;
  */
 public class KmerEdge implements Writable {
 
-	String sequence;
-	Set<KmerLabel> labels;
+	protected String sequence;
+	protected int coverage;
 	
-	public void set(String sequence, Set<KmerLabel> labels) {
+	public void set(String sequence, int coverage) {
 		this.sequence = sequence;
-		this.labels = labels;
+		this.coverage = coverage;
 	}
 	
-	public Set<KmerLabel> labels() {
-		return labels;
-	}
-	public void addLabels(Set<KmerLabel> l) {
-		labels.addAll(l);
+	public void setCoverage(int newCov) {
+		this.coverage = newCov;
 	}
 	
 	public int coverage() {
-		return labels.size();
-	}
-	
-	public String toString() {
-		StringBuffer b = new StringBuffer();
-		b.append(sequence);
-		if (labels != null) {
-			for (KmerLabel l: labels) {
-				b.append(",");
-				b.append(l.toString());
-			}
-		}
-		return b.toString();
+		return coverage;
 	}
 	
 	public static KmerEdge read(DataInput in) throws IOException {
@@ -52,26 +35,24 @@ public class KmerEdge implements Writable {
 		return k;
 	}
 	
+	public String toString() {
+		StringBuffer b = new StringBuffer();
+		b.append(sequence);
+		b.append(",");
+		b.append(coverage);
+		return b.toString();
+	}
+	
 	@Override
 	public void readFields(DataInput in) throws IOException {
 		sequence = in.readUTF();
-		int labelCount = in.readInt();
-		labels = new HashSet<KmerLabel>(labelCount);
-		
-		for (int i = 0; i < labelCount; i++) {
-			labels.add(KmerLabel.read(in));
-		}
-		
+		coverage = in.readInt();
 	}
 
 	@Override
 	public void write(DataOutput out) throws IOException {
 		out.writeUTF(sequence);
-		out.writeInt(labels.size());
-		for (KmerLabel k: labels) {
-			k.write(out);
-		}
-		
+		out.writeInt(coverage);
 	}
 
 }

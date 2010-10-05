@@ -37,7 +37,7 @@ public class Assemble {
 		inputPaths = new ArrayList<String>();
 		kmerLength = kmerLen;
 		outputPath = outPath;
-		extendIter = 2;
+		extendIter = 3;
 	}
 	
 	private Job setupBuildGraphJob(String outputPath) throws IOException {
@@ -87,7 +87,7 @@ public class Assemble {
 		//Increase task jvm memory
 		config.set("mapred.child.java.opts", "-Xmx2000m");
 		
-		config.setFloat("minimum-coverage", (float)2.0);
+		config.setFloat("minimum-coverage", (float)10.0);
 		
 		job.setJarByClass(ExtendPathsBFS.class);
 		job.setInputFormatClass(SequenceFileInputFormat.class);
@@ -102,7 +102,7 @@ public class Assemble {
 		
 		job.setMapperClass(ExtendPathsMapper.class);
 		job.setReducerClass(ExtendPathsReducer.class);
-		job.setNumReduceTasks(10);
+		job.setNumReduceTasks(200);
 		
 		job.setMapOutputKeyClass(Text.class);
 
@@ -119,11 +119,16 @@ public class Assemble {
 	
 	public void run() throws IOException, InterruptedException, ClassNotFoundException {
 		
-		//Job build = setupBuildGraphJob(outputPath+BUILD_OUTPUT_DIR);
-
-		for (int i = 2; i < 20; i++) {
-			Job build = setupExtendPathJob();
-			if (build.waitForCompletion(true) == false) {
+		/*
+		Job build = setupBuildGraphJob(outputPath+BUILD_OUTPUT_DIR);
+	
+		if (build.waitForCompletion(true) == false) {
+			return;
+		}*/
+		
+		for (int i = 0; i < 10; i++) {
+			Job b = setupExtendPathJob();
+			if (b.waitForCompletion(true) == false) {
 				break;		
 			}
 		}
